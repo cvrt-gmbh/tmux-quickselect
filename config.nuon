@@ -1,0 +1,25 @@
+# tmux-quickselect configuration
+# Copy to ~/.config/tmux-quickselect/config.nuon and customize
+{
+    # Directories to scan (subdirectories will be listed)
+    # Use → to drill down into nested folders interactively
+    directories: [
+        { path: "~/Git", label: "git", color: "cyan" }
+    ]
+
+    # Command to run after selecting (empty = just cd)
+    command: ""
+
+    # Sort order: "recent" (last used first), "alphabetical", "label"
+    sort: "recent"
+
+    # Cache directory for usage history
+    cache_dir: "~/.cache/tmux-quickselect"
+
+    # UI settings
+    ui: {
+        title: "Quick Select"
+        icon: "📂"
+        width: 25  # Column width for directory names
+    }
+}
