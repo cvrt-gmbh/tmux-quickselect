@@ -5,8 +5,7 @@ class TmuxQuickselect < Formula
   desc "Fast, interactive directory selector for tmux with Nushell"
   homepage "https://github.com/cvrt-gmbh/tmux-quickselect"
   url "https://github.com/cvrt-gmbh/tmux-quickselect.git",
-      tag:      "v1.0.1",
-      revision: "f5ff320a27682fad20c10028f0f770868878ea99"
+      tag:      "v1.0.2"
   license "MIT"
   head "https://github.com/cvrt-gmbh/tmux-quickselect.git", branch: "main"
 
@@ -107,7 +106,10 @@ class TmuxQuickselect < Formula
           fi
           
           echo ""
-          echo -e "${GREEN}Setup complete!${NC} Restart your shell and press ${CYAN}Ctrl+A O${NC} in tmux."
+          echo -e "${GREEN}Setup complete!${NC}"
+          echo ""
+          read -p "Press Enter to reload shell..." _
+          exec nu --login
           ;;
         
         2|*)

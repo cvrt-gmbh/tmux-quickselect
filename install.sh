@@ -106,7 +106,10 @@ main() {
             fi
 
             echo ""
-            info "Setup complete! Restart your shell and press Ctrl+A O in tmux."
+            info "Setup complete!"
+            echo ""
+            read -p "Press Enter to reload shell..." _
+            exec nu --login
             ;;
 
         2|*)
