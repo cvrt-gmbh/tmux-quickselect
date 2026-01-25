@@ -5,7 +5,8 @@ class TmuxQuickselect < Formula
   desc "Fast, interactive directory selector for tmux with Nushell"
   homepage "https://github.com/cvrt-gmbh/tmux-quickselect"
   url "https://github.com/cvrt-gmbh/tmux-quickselect.git",
-      tag:      "v1.0.1"
+      tag:      "v1.0.1",
+      revision: "f5ff320a27682fad20c10028f0f770868878ea99"
   license "MIT"
   head "https://github.com/cvrt-gmbh/tmux-quickselect.git", branch: "main"
 
