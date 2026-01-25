@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-01-25
+
+### Changed
+- `qs-install` now offers interactive setup dialog:
+  - Option 1: Auto-configure (edits nushell and tmux configs automatically)
+  - Option 2: Manual setup (prints copy-paste instructions)
+- Auto-detects nushell config location (macOS `~/Library/...` or XDG `~/.config/...`)
+- Auto-detects tmux config location (`~/.config/tmux/` or `~/.tmux.conf`)
+- Uses stable Homebrew path (`/opt/homebrew/opt/...`) instead of versioned Cellar path
+
+### Fixed
+- Repository URL updated from cvrt-jh to cvrt-gmbh
+
+## [1.0.0] - 2026-01-24
+
+### Changed
+- Moved repository from cvrt-jh to cvrt-gmbh
+- First stable release
+
 ## [0.3.0] - 2026-01-23
 
 ### Added
