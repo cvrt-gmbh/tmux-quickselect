@@ -24,10 +24,7 @@ A fast, interactive directory selector for tmux.
 ### Homebrew (recommended)
 
 ```bash
-brew tap cvrt-gmbh/tmux-quickselect
-brew install tmux-quickselect
-
-# Complete setup
+brew install cvrt-gmbh/tmux-quickselect/tmux-quickselect
 qs-install
 ```
 
