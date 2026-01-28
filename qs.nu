@@ -128,27 +128,37 @@ def run-plugin [
         return null
     }
     
-    # Source the plugin and call its run function
-    # We use nu -c to run in a subshell to avoid polluting the current scope
-    let result = (do {
-        nu --login -c $"
-            source '($plugin_path)'
-            run '($path)' '($name)' ($plugin_config | to nuon) ($tmux)
-        "
-    } | complete)
+    # Write plugin config to temp file for the subprocess to read
+    let temp_config = (mktemp -t qs-plugin-config.XXXXXX)
+    let temp_result = (mktemp -t qs-plugin-result.XXXXXX)
+    $plugin_config | to nuon | save -f $temp_config
     
-    if $result.exit_code != 0 {
-        print $"(ansi red)Plugin error: ($result.stderr)(ansi reset)"
-        return null
-    }
+    # Run plugin interactively (no pipe capture) - it writes result to temp file
+    # This allows input list and other interactive commands to work
+    nu --login -c $"
+        source '($plugin_path)'
+        let cfg = \(open '($temp_config)' | from nuon\)
+        let result = \(run '($path)' '($name)' $cfg ($tmux)\)
+        if \($result != null\) {
+            $result | to nuon | save -f '($temp_result)'
+        }
+    "
     
-    # Parse the result (should be a record with command and window_name)
-    try {
-        $result.stdout | str trim | from nuon
-    } catch {
-        print $"(ansi red)Plugin returned invalid output(ansi reset)"
+    # Read result from temp file
+    let result = if ($temp_result | path exists) and (open $temp_result | str trim | is-not-empty) {
+        try {
+            open $temp_result | from nuon
+        } catch {
+            null
+        }
+    } else {
         null
     }
+    
+    # Cleanup temp files
+    rm -f $temp_config $temp_result
+    
+    $result
 }
 
 # Execute the final command (either from plugin or config.command)
