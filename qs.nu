@@ -195,8 +195,11 @@ def execute-selection [
         # Open in new tmux window
         if ($command | is-empty) {
             tmux new-window -n $window_name -c $selection_path
+        } else if ($command | str starts-with "bash -c") {
+            # Command is already a bash script, run directly
+            tmux new-window -n $window_name -c $selection_path $command
         } else {
-            # Use nu --login -c for interactive commands
+            # Wrap in nu --login for nushell commands
             let full_cmd = $"nu --login -c '($command)'"
             tmux new-window -n $window_name -c $selection_path $full_cmd
         }
