@@ -191,16 +191,33 @@ def execute-selection [
     let command = ($result | get -o command | default "")
     let window_name = ($result | get -o window_name | default $selection_name)
     
+    # Debug log to file (always, for troubleshooting)
+    let debug_log = "/tmp/qs-debug.log"
+    $"[($date now | format date '%Y-%m-%d %H:%M:%S')] qs execute\n" | save -a $debug_log
+    $"  tmux mode: ($tmux)\n" | save -a $debug_log
+    $"  window_name: ($window_name)\n" | save -a $debug_log
+    $"  selection_path: ($selection_path)\n" | save -a $debug_log
+    $"  command length: ($command | str length)\n" | save -a $debug_log
+    $"  command starts with 'bash -c': ($command | str starts-with 'bash -c')\n" | save -a $debug_log
+    $"  command: ($command)\n" | save -a $debug_log
+    
     if $tmux {
         # Open in new tmux window
         if ($command | is-empty) {
+            $"  -> executing: tmux new-window -n <name> -c <path> (no command)\n" | save -a $debug_log
             tmux new-window -n $window_name -c $selection_path
         } else if ($command | str starts-with "bash -c") {
             # Command is already a bash script, run directly
-            tmux new-window -n $window_name -c $selection_path $command
+            $"  -> executing: tmux new-window -n <name> -c <path> <bash command>\n" | save -a $debug_log
+            let result = (do { tmux new-window -n $window_name -c $selection_path $command } | complete)
+            $"  -> exit code: ($result.exit_code)\n" | save -a $debug_log
+            if $result.exit_code != 0 {
+                $"  -> stderr: ($result.stderr)\n" | save -a $debug_log
+            }
         } else {
             # Wrap in nu --login for nushell commands
             let full_cmd = $"nu --login -c '($command)'"
+            $"  -> executing: tmux new-window -n <name> -c <path> <nu wrapped>\n" | save -a $debug_log
             tmux new-window -n $window_name -c $selection_path $full_cmd
         }
     } else {
