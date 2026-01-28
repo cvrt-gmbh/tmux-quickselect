@@ -56,7 +56,7 @@ def select-profile [profiles: list<string>, config: record] {
     
     if $show_endless {
         $items = ($items | append { 
-            display: $"  (ansi yellow)∞ Endless mode(ansi reset) (ansi dark_gray)- auto-restart on exit(ansi reset)"
+            display: $"  (ansi yellow)∞ Endless mode(ansi reset) (ansi dark_gray)- rotate profiles on exit/limit(ansi reset)"
             value: "endless"
             type: "special"
         })
@@ -86,12 +86,17 @@ def select-profile [profiles: list<string>, config: record] {
 }
 
 # Build the command to execute
-def build-command [profile: string, config: record, endless: bool] {
+# For endless mode, profiles should be a list to rotate through
+def build-command [profile: string, config: record, endless: bool, all_profiles: list<string> = []] {
     let args = ($config | get -o claude_args | default "--dangerously-skip-permissions")
     
     if $endless {
-        # Endless mode: loop until user explicitly exits
-        $"while true; do caam exec claude ($profile) -- ($args); echo 'Press Ctrl+C to exit, or wait to restart...'; sleep 2; done"
+        # Endless mode: rotate through all profiles when one exits (e.g., rate limit)
+        let profiles_quoted = ($all_profiles | each {|p| $"\"($p)\""} | str join " ")
+        let n = ($all_profiles | length)
+        let pct = "%"  # Escape percent for nushell
+        # Use bash array syntax
+        $"bash -c 'profiles=\(($profiles_quoted)\); n=($n); i=0; while true; do p=\"\\${profiles[\\$i]}\"; echo -e \"\\n\\033[33m∞ Starting profile \\$\(\(i+1\)\)/\\$n: \\$p\\033[0m\"; caam exec claude \\$p -- ($args); code=\\$?; echo -e \"\\033[90mProfile \\$p exited \(code \\$code\). Rotating to next in 2s...\\033[0m\"; sleep 2; i=\\$\(\( \(i+1\) ($pct) n \)\); done'"
     } else {
         $"caam exec claude ($profile) -- ($args)"
     }
@@ -139,27 +144,22 @@ export def run [
     }
     
     let endless = ($selection == "endless")
-    let profile = if $endless {
-        # For endless mode, need to pick a profile first
-        let filtered = ($profiles | where { $in != "endless" })
-        if ($filtered | length) == 1 {
-            $filtered | first
-        } else {
-            print ""
-            print $"(ansi yellow)Select profile for endless mode:(ansi reset)"
-            let p = ($filtered | input list --fuzzy "Profile: ")
-            if ($p | is-empty) { return null }
-            $p
+    
+    if $endless {
+        # Endless mode: rotate through ALL profiles
+        let command = (build-command "" $config true $profiles)
+        return { 
+            command: $command
+            window_name: $"($name) [∞]"
         }
-    } else {
-        $selection
     }
     
-    let command = (build-command $profile $config $endless)
+    # Single profile mode
+    let command = (build-command $selection $config false)
     
     # Return command for qs to execute
     { 
         command: $command
-        window_name: $"($name) [($profile)]"
+        window_name: $"($name) [($selection)]"
     }
 }
