@@ -256,6 +256,12 @@ def execute-selection [
 #        qs --path    - start browsing from a specific path
 #        qs --debug   - show debug info and wait
 export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
+    # Always log to file for debugging
+    let debug_log = "/tmp/qs-debug.log"
+    $"[(date now | format date '%Y-%m-%d %H:%M:%S')] qs main started\n" | save -a $debug_log
+    $"  tmux flag: ($tmux)\n" | save -a $debug_log
+    $"  path flag: ($path | default 'none')\n" | save -a $debug_log
+    
     if $debug {
         print $"(ansi yellow)DEBUG: qs started(ansi reset)"
         print $"  PWD: ($env.PWD)"
@@ -450,6 +456,13 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                     # Update history
                     let new_history = ($history | upsert $selection.path (date now | format date "%+"))
                     $new_history | save -f $cache_file
+
+                    # Log before execute
+                    let debug_log = "/tmp/qs-debug.log"
+                    $"[(date now | format date '%Y-%m-%d %H:%M:%S')] project selected\n" | save -a $debug_log
+                    $"  path: ($selection.path)\n" | save -a $debug_log
+                    $"  name: ($selection.name)\n" | save -a $debug_log
+                    $"  calling execute-selection...\n" | save -a $debug_log
 
                     # Execute using plugin or command
                     let executed = (execute-selection $config $selection.path $selection.name $tmux $line)
