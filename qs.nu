@@ -291,7 +291,8 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                         if ($config.command | is-empty) {
                             tmux new-window -n $selection.name -c $selection.path
                         } else {
-                            tmux new-window -n $selection.name -c $selection.path $"nu -e '($config.command)'"
+                            # Use nu --login -c for interactive commands (e.g., claude, caam)
+                            tmux new-window -n $selection.name -c $selection.path $"nu --login -c '($config.command)'"
                         }
                     } else {
                         print ""
@@ -332,7 +333,8 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                             if ($config.command | is-empty) {
                                 tmux new-window -n $selection.name -c $selection.path
                             } else {
-                                tmux new-window -n $selection.name -c $selection.path $"nu -e '($config.command)'"
+                                # Use nu --login -c for interactive commands (e.g., claude, caam)
+                                tmux new-window -n $selection.name -c $selection.path $"nu --login -c '($config.command)'"
                             }
                         } else {
                             print ""
