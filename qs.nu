@@ -193,7 +193,7 @@ def execute-selection [
     
     # Debug log to file (always, for troubleshooting)
     let debug_log = "/tmp/qs-debug.log"
-    $"[($date now | format date '%Y-%m-%d %H:%M:%S')] qs execute\n" | save -a $debug_log
+    $"[(date now | format date '%Y-%m-%d %H:%M:%S')] qs execute\n" | save -a $debug_log
     $"  tmux mode: ($tmux)\n" | save -a $debug_log
     $"  window_name: ($window_name)\n" | save -a $debug_log
     $"  selection_path: ($selection_path)\n" | save -a $debug_log
