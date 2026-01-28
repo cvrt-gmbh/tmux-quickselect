@@ -217,9 +217,9 @@ def execute-selection [
         if ($command | is-empty) {
             $"  -> executing: tmux new-window -n <name> -c <path> (no command)\n" | save -a $debug_log
             tmux new-window -n $window_name -c $selection_path
-        } else if ($command | str starts-with "bash -c") {
-            # Command is already a bash script, run directly
-            $"  -> executing: tmux new-window -n <name> -c <path> <bash command>\n" | save -a $debug_log
+        } else if ($command | str starts-with "bash -c") or ($command | str starts-with "caam exec") {
+            # Command is a bash script or caam exec - run directly (needs TTY)
+            $"  -> executing: tmux new-window -n <name> -c <path> <direct command>\n" | save -a $debug_log
             let result = (do { tmux new-window -n $window_name -c $selection_path $command } | complete)
             $"  -> exit code: ($result.exit_code)\n" | save -a $debug_log
             if $result.exit_code != 0 {
