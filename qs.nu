@@ -229,7 +229,11 @@ def execute-selection [
             # Wrap in nu --login for nushell commands
             let full_cmd = $"nu --login -c '($command)'"
             $"  -> executing: tmux new-window -n <name> -c <path> <nu wrapped>\n" | save -a $debug_log
-            tmux new-window -n $window_name -c $selection_path $full_cmd
+            let result = (do { tmux new-window -n $window_name -c $selection_path $full_cmd } | complete)
+            $"  -> exit code: ($result.exit_code)\n" | save -a $debug_log
+            if $result.exit_code != 0 {
+                $"  -> stderr: ($result.stderr)\n" | save -a $debug_log
+            }
         }
     } else {
         print ""

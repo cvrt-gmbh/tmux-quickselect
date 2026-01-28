@@ -22,7 +22,8 @@ export def default-config [] {
 }
 
 # Get available CAAM profiles for Claude
-# Returns list of profile IDs like ["claude/dev", "claude/org", ...]
+# Returns list of profile names like ["dev", "org", ...]
+# Note: caam profile list returns "claude/dev" but caam exec wants just "dev"
 def get-profiles [] {
     # Check if caam is available
     if (which caam | is-empty) {
@@ -37,12 +38,21 @@ def get-profiles [] {
         return []
     }
     
-    # Extract just the profile ID (first token after trimming)
+    # Extract profile name and strip "claude/" prefix
     # Line format: "  claude/dev  dev@cavort-it.systems - Dev account"
+    # We need just "dev" for caam exec
     $result.stdout 
         | lines 
         | where { $in | str trim | is-not-empty }
-        | each {|line| $line | str trim | split row " " | first }
+        | each {|line| 
+            let full_id = ($line | str trim | split row " " | first)
+            # Strip "claude/" prefix if present
+            if ($full_id | str starts-with "claude/") {
+                $full_id | str substring 7..
+            } else {
+                $full_id
+            }
+        }
 }
 
 # Show profile selection UI
