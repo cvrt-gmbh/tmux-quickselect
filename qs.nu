@@ -197,7 +197,8 @@ def execute-selection [
             tmux new-window -n $window_name -c $selection_path
         } else {
             # Use nu --login -c for interactive commands
-            tmux new-window -n $window_name -c $selection_path $"nu --login -c '($command)'"
+            let full_cmd = $"nu --login -c '($command)'"
+            tmux new-window -n $window_name -c $selection_path $full_cmd
         }
     } else {
         print ""

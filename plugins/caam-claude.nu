@@ -22,6 +22,7 @@ export def default-config [] {
 }
 
 # Get available CAAM profiles for Claude
+# Returns list of profile IDs like ["claude/dev", "claude/org", ...]
 def get-profiles [] {
     # Check if caam is available
     if (which caam | is-empty) {
@@ -30,13 +31,18 @@ def get-profiles [] {
     }
     
     # Get profiles from caam
+    # Output format: "  claude/dev  dev@cavort-it.systems - Dev account"
     let result = (do { caam profile list claude } | complete)
     if $result.exit_code != 0 {
         return []
     }
     
-    # Parse profile list (one per line)
-    $result.stdout | lines | where { $in | str trim | is-not-empty }
+    # Extract just the profile ID (first token after trimming)
+    # Line format: "  claude/dev  dev@cavort-it.systems - Dev account"
+    $result.stdout 
+        | lines 
+        | where { $in | str trim | is-not-empty }
+        | each {|line| $line | str trim | split row " " | first }
 }
 
 # Show profile selection UI
