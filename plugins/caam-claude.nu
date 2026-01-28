@@ -102,13 +102,15 @@ def build-command [profile: string, config: record, endless: bool, all_profiles:
     
     if $endless {
         # Endless mode: rotate through all profiles when one exits (e.g., rate limit)
+        # Use --no-lock to allow multiple sessions with same profile
         let profiles_quoted = ($all_profiles | each {|p| $"\"($p)\""} | str join " ")
         let n = ($all_profiles | length)
         let pct = "%"  # Escape percent for nushell
         # Use bash array syntax
-        $"bash -c 'profiles=\(($profiles_quoted)\); n=($n); i=0; while true; do p=\"\\${profiles[\\$i]}\"; echo -e \"\\n\\033[33m∞ Starting profile \\$\(\(i+1\)\)/\\$n: \\$p\\033[0m\"; caam exec claude \\$p -- ($args); code=\\$?; echo -e \"\\033[90mProfile \\$p exited \(code \\$code\). Rotating to next in 2s...\\033[0m\"; sleep 2; i=\\$\(\( \(i+1\) ($pct) n \)\); done'"
+        $"bash -c 'profiles=\(($profiles_quoted)\); n=($n); i=0; while true; do p=\"\\${profiles[\\$i]}\"; echo -e \"\\n\\033[33m∞ Starting profile \\$\(\(i+1\)\)/\\$n: \\$p\\033[0m\"; caam exec --no-lock claude \\$p -- ($args); code=\\$?; echo -e \"\\033[90mProfile \\$p exited \(code \\$code\). Rotating to next in 2s...\\033[0m\"; sleep 2; i=\\$\(\( \(i+1\) ($pct) n \)\); done'"
     } else {
-        $"caam exec claude ($profile) -- ($args)"
+        # Use --no-lock to allow multiple sessions with same profile
+        $"caam exec --no-lock claude ($profile) -- ($args)"
     }
 }
 
