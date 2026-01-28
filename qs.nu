@@ -162,13 +162,14 @@ def run-plugin [
 }
 
 # Execute the final command (either from plugin or config.command)
+# Returns: true if executed, false if cancelled (should go back)
 def execute-selection [
     config: record,
     selection_path: string,
     selection_name: string,
     tmux: bool,
     line: string
-] {
+]: nothing -> bool {
     let plugin_name = ($config | get -o plugin | default null)
     let plugin_config = ($config | get -o plugin_config | default {})
     
@@ -182,9 +183,9 @@ def execute-selection [
         { command: $cmd, window_name: $selection_name }
     }
     
-    # If plugin returned null, it cancelled
+    # If plugin returned null, it cancelled - signal to go back
     if ($result == null) {
-        return
+        return false
     }
     
     let command = ($result | get -o command | default "")
@@ -211,6 +212,8 @@ def execute-selection [
             nu -c $command
         }
     }
+    
+    true
 }
 
 # ============ Main Command ============
@@ -417,7 +420,15 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                     $new_history | save -f $cache_file
 
                     # Execute using plugin or command
-                    execute-selection $config $selection.path $selection.name $tmux $line
+                    let executed = (execute-selection $config $selection.path $selection.name $tmux $line)
+                    if not $executed {
+                        # Plugin cancelled - go back to selection
+                        if $path == null {
+                            qs --tmux=$tmux
+                        } else {
+                            qs --tmux=$tmux --path $path
+                        }
+                    }
                 }
             }
             "nav" => {
@@ -441,7 +452,11 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                         $new_history | save -f $cache_file
 
                         # Execute using plugin or command
-                        execute-selection $config $selection.path $selection.name $tmux $line
+                        let executed = (execute-selection $config $selection.path $selection.name $tmux $line)
+                        if not $executed {
+                            # Plugin cancelled - go back to selection
+                            qs --tmux=$tmux --path $selection.path
+                        }
                     }
                 }
             }
