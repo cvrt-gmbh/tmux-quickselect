@@ -170,12 +170,20 @@ def execute-selection [
     tmux: bool,
     line: string
 ]: nothing -> bool {
+    let debug_log = "/tmp/qs-debug.log"
+    $"[(date now | format date '%Y-%m-%d %H:%M:%S')] execute-selection called\n" | save -a $debug_log
+    $"  selection_path: ($selection_path)\n" | save -a $debug_log
+    $"  selection_name: ($selection_name)\n" | save -a $debug_log
+    $"  tmux: ($tmux)\n" | save -a $debug_log
+    
     let plugin_name = ($config | get -o plugin | default null)
     let plugin_config = ($config | get -o plugin_config | default {})
+    $"  plugin_name: ($plugin_name)\n" | save -a $debug_log
     
     # Determine command and window name
     let result = if ($plugin_name != null) {
         # Use plugin
+        $"  -> calling run-plugin\n" | save -a $debug_log
         run-plugin $plugin_name $selection_path $selection_name $plugin_config $tmux
     } else {
         # Use simple command from config
@@ -183,8 +191,11 @@ def execute-selection [
         { command: $cmd, window_name: $selection_name }
     }
     
+    $"  plugin result: ($result | to nuon)\n" | save -a $debug_log
+    
     # If plugin returned null, it cancelled - signal to go back
     if ($result == null) {
+        $"  -> plugin returned null, going back\n" | save -a $debug_log
         return false
     }
     
