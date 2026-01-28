@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.3] - 2026-01-28
 
+### Added
+- **Plugin system** for extensible post-selection actions
+- `caam-claude` plugin: Multi-profile Claude launcher with CAAM integration
+  - Auto-detects available CAAM profiles
+  - Profile selection UI when multiple profiles exist
+  - "Endless mode" option for auto-restart on exit
+- Plugins can be installed to `~/.config/tmux-quickselect/plugins/` or bundled
+- New "Action" config menu replaces "Command" - supports both simple commands and plugins
+
 ### Fixed
 - Interactive commands (claude, caam) now work properly in tmux windows
 - Changed `nu -e` to `nu --login -c` for command execution to support interactive CLIs

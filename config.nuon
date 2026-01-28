@@ -8,10 +8,27 @@
     ]
 
     # Command to run after selecting (empty = just cd)
+    # Ignored if 'plugin' is set
     command: ""
 
+    # Plugin to use instead of simple command (optional)
+    # Available plugins: caam-claude
+    # plugin: "caam-claude"
+
+    # Plugin-specific configuration (optional)
+    # plugin_config: {
+    #     profiles: []           # Auto-detect if empty
+    #     default_profile: null  # Skip selection if set
+    #     claude_args: "--dangerously-skip-permissions"
+    #     show_endless: true     # Show "endless mode" option
+    # }
+
     # Sort order: "recent" (last used first), "alphabetical", "label"
+    # Can also be a list for multi-key sort: ["label", "recent"]
     sort: "recent"
+
+    # Show hidden files/folders (dotfiles)
+    show_hidden: false
 
     # Cache directory for usage history
     cache_dir: "~/.cache/tmux-quickselect"

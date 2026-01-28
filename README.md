@@ -11,8 +11,8 @@ A fast, interactive directory selector for tmux.
 - **Configurable** - Define your own watch directories
 - **tmux integration** - Launch in popup, open in new window
 - **Homebrew-style UI** - Clean, colored interface
-- **Optional command** - Run any command after selection (or just cd)
-- **In-app settings** - Configure sort order and command from the menu
+- **Plugin system** - Extensible actions after directory selection
+- **In-app settings** - Configure sort order, commands, and plugins from the menu
 
 ## Requirements
 

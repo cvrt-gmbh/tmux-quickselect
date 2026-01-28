@@ -6,7 +6,7 @@ class TmuxQuickselect < Formula
   homepage "https://github.com/cvrt-gmbh/tmux-quickselect"
   url "https://github.com/cvrt-gmbh/tmux-quickselect.git",
       tag:      "v1.0.3",
-      revision: "PLACEHOLDER"
+      revision: "02b1eb293fecf91e58170e3b2f30b98bee5f1259"
   license "MIT"
   head "https://github.com/cvrt-gmbh/tmux-quickselect.git", branch: "main"
 
@@ -14,6 +14,7 @@ class TmuxQuickselect < Formula
 
   def install
     libexec.install "qs.nu"
+    (libexec/"plugins").install Dir["plugins/*.nu"]
     (share/"tmux-quickselect").install "config.nuon"
 
     (bin/"qs-install").write <<~EOS
