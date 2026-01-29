@@ -421,12 +421,13 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
     }
     let hidden_status = if $show_hidden { "on" } else { "off" }
     let plugin_name = ($config | get -o plugin | default null)
+    let config_command = ($config | get -o command | default "")
     let action_display = if ($plugin_name != null) {
         $"(ansi magenta)plugin:(ansi reset) ($plugin_name)"
-    } else if ($config.command | is-empty) {
+    } else if ($config_command | is-empty) {
         "(none)"
     } else {
-        $config.command
+        $config_command
     }
     let config_items = if ($browsing_path | is-empty) {
         [

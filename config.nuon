@@ -12,16 +12,11 @@
     command: ""
 
     # Plugin to use instead of simple command (optional)
-    # Available plugins: caam-claude
-    # plugin: "caam-claude"
+    # Plugins are loaded from ~/.config/tmux-quickselect/plugins/ or /opt/homebrew/opt/tmux-quickselect/libexec/plugins/
+    # plugin: "my-plugin"
 
-    # Plugin-specific configuration (optional)
-    # plugin_config: {
-    #     profiles: []           # Auto-detect if empty
-    #     default_profile: null  # Skip selection if set
-    #     claude_args: "--dangerously-skip-permissions"
-    #     show_endless: true     # Show "endless mode" option
-    # }
+    # Plugin-specific configuration (optional, varies by plugin)
+    # plugin_config: {}
 
     # Sort order: "recent" (last used first), "alphabetical", "label"
     # Can also be a list for multi-key sort: ["label", "recent"]
