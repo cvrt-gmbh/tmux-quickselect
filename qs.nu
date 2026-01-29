@@ -537,13 +537,17 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                     }
                     "action" => {
                         # Configure what happens after directory selection
+                        let debug_log = "/tmp/qs-debug.log"
+                        $"[(date now | format date '%Y-%m-%d %H:%M:%S')] action menu entered\n" | save -a $debug_log
                         print ""
                         print $"(ansi yellow)Configure action after selection:(ansi reset)"
                         print $"(ansi dark_gray)Current: ($action_display)(ansi reset)"
                         print ""
-                        
+                        $"  after prints\n" | save -a $debug_log
+
                         # Find available plugins
                         let user_plugins_dir = ($USER_PLUGIN_DIR | path expand)
+                        $"  user_plugins_dir: ($user_plugins_dir)\n" | save -a $debug_log
                         let user_plugins = if ($user_plugins_dir | path exists) {
                             ls $user_plugins_dir | where name =~ '\.nu$' | each {|f| $f.name | path basename | str replace '.nu' '' }
                         } else { [] }
@@ -553,8 +557,10 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                         } else { [] }
                         
                         let all_plugins = ($user_plugins | append $system_plugins | uniq | where { $in != "default" })
-                        
+                        $"  all_plugins: ($all_plugins)\n" | save -a $debug_log
+
                         # Build menu
+                        $"  building menu\n" | save -a $debug_log
                         mut menu_items = [
                             { display: $"(ansi green)▸(ansi reset) Simple command", value: "__COMMAND__", type: "command" }
                             { display: $"(ansi red)✕(ansi reset) None (just open shell)", value: "__NONE__", type: "none" }
@@ -567,8 +573,11 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                             }))
                         }
                         
+                        $"  menu_items: ($menu_items | length) items\n" | save -a $debug_log
+                        $"  showing input list\n" | save -a $debug_log
                         let selection = ($menu_items | input list --display display "Action:")
-                        
+                        $"  selection made: ($selection | to nuon)\n" | save -a $debug_log
+
                         if ($selection | is-not-empty) and ($selection.type != "separator") {
                             if $selection.type == "command" {
                                 # Show command input
