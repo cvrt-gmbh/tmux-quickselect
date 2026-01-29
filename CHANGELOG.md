@@ -5,16 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-01-29
+
+### Fixed
+- Config field access crash when `command` field is missing from user config
+- Safely access optional config fields using `get -o` with defaults
+
+### Removed
+- Plugin system (reverted due to stability issues)
+- `caam-claude` plugin
+
 ## [1.0.3] - 2026-01-28
 
 ### Added
-- **Plugin system** for extensible post-selection actions
-- `caam-claude` plugin: Multi-profile Claude launcher with CAAM integration
-  - Auto-detects available CAAM profiles
-  - Profile selection UI when multiple profiles exist
-  - "Endless mode" option for auto-restart on exit
-- Plugins can be installed to `~/.config/tmux-quickselect/plugins/` or bundled
-- New "Action" config menu replaces "Command" - supports both simple commands and plugins
+- **Plugin system** for extensible post-selection actions (removed in 1.0.4)
+- `caam-claude` plugin (removed in 1.0.4)
 
 ### Fixed
 - Interactive commands (claude, caam) now work properly in tmux windows
