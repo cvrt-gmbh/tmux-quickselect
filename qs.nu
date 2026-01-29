@@ -561,18 +561,21 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
 
                         # Build menu
                         $"  building menu\n" | save -a $debug_log
-                        mut menu_items = [
-                            { display: $"(ansi green)▸(ansi reset) Simple command", value: "__COMMAND__", type: "command" }
-                            { display: $"(ansi red)✕(ansi reset) None (just open shell)", value: "__NONE__", type: "none" }
-                        ]
-                        
+                        let menu_item_1 = { display: $"(ansi green)▸(ansi reset) Simple command", value: "__COMMAND__", type: "command" }
+                        $"  item 1 built\n" | save -a $debug_log
+                        let menu_item_2 = { display: $"(ansi red)✕(ansi reset) None (just open shell)", value: "__NONE__", type: "none" }
+                        $"  item 2 built\n" | save -a $debug_log
+                        mut menu_items = [$menu_item_1, $menu_item_2]
+                        $"  base menu built\n" | save -a $debug_log
+
                         if ($all_plugins | is-not-empty) {
                             $menu_items = ($menu_items | append { display: $"(ansi dark_gray)── Plugins ──(ansi reset)", value: "__SEP__", type: "separator" })
                             $menu_items = ($menu_items | append ($all_plugins | each {|p|
                                 { display: $"(ansi magenta)◆(ansi reset) ($p)", value: $p, type: "plugin" }
                             }))
                         }
-                        
+                        $"  plugins check done\n" | save -a $debug_log
+
                         $"  menu_items: ($menu_items | length) items\n" | save -a $debug_log
                         $"  showing input list\n" | save -a $debug_log
                         let selection = ($menu_items | input list --display display "Action:")
