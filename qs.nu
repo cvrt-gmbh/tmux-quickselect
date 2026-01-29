@@ -253,11 +253,12 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
         $sort_keys | str join " → "
     }
     let hidden_status = if $show_hidden { "on" } else { "off" }
+    let config_command = ($config | get -o command | default "")
     let config_items = if ($browsing_path | is-empty) {
         [
             { display: $"(ansi dark_gray)──────────────────────────────────────(ansi reset)", type: "separator", action: "" }
             { display: $"(ansi yellow)⚙(ansi reset)  Sort: (ansi white_bold)($sort_display)(ansi reset)", type: "config", action: "sort" }
-            { display: $"(ansi yellow)⚙(ansi reset)  Command: (ansi white_bold)(if ($config.command | is-empty) { '(none)' } else { $config.command })(ansi reset)", type: "config", action: "command" }
+            { display: $"(ansi yellow)⚙(ansi reset)  Command: (ansi white_bold)(if ($config_command | is-empty) { '(none)' } else { $config_command })(ansi reset)", type: "config", action: "command" }
             { display: $"(ansi yellow)⚙(ansi reset)  Show hidden: (ansi white_bold)($hidden_status)(ansi reset)", type: "config", action: "toggle_hidden" }
             { display: $"(ansi blue)📄(ansi reset) Edit config", type: "config", action: "edit_config" }
             { display: $"(ansi red)✕(ansi reset)  Clear history", type: "config", action: "clear_history" }
@@ -288,11 +289,11 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
 
                     if $tmux {
                         # Open in new tmux window with directory name
-                        if ($config.command | is-empty) {
+                        if ($config_command | is-empty) {
                             tmux new-window -n $selection.name -c $selection.path
                         } else {
                             # Use nu --login -c for interactive commands (e.g., claude, caam)
-                            tmux new-window -n $selection.name -c $selection.path $"nu --login -c '($config.command)'"
+                            tmux new-window -n $selection.name -c $selection.path $"nu --login -c '($config_command)'"
                         }
                     } else {
                         print ""
@@ -303,8 +304,8 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                         cd $selection.path
                         
                         # Run the configured command if set
-                        if ($config.command | is-not-empty) {
-                            nu -c $config.command
+                        if ($config_command | is-not-empty) {
+                            nu -c $config_command
                         }
                     }
                 }
@@ -330,11 +331,11 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                         $new_history | save -f $cache_file
 
                         if $tmux {
-                            if ($config.command | is-empty) {
+                            if ($config_command | is-empty) {
                                 tmux new-window -n $selection.name -c $selection.path
                             } else {
                                 # Use nu --login -c for interactive commands (e.g., claude, caam)
-                                tmux new-window -n $selection.name -c $selection.path $"nu --login -c '($config.command)'"
+                                tmux new-window -n $selection.name -c $selection.path $"nu --login -c '($config_command)'"
                             }
                         } else {
                             print ""
@@ -344,8 +345,8 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                             print $"(ansi green)($line)(ansi reset)"
                             cd $selection.path
                             
-                            if ($config.command | is-not-empty) {
-                                nu -c $config.command
+                            if ($config_command | is-not-empty) {
+                                nu -c $config_command
                             }
                         }
                     }
@@ -386,7 +387,7 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                         }
                         
                         print ""
-                        let current = if ($config.command | is-empty) { "" } else { $config.command }
+                        let current = if ($config_command | is-empty) { "" } else { $config_command }
                         let current_display = if ($current | is-empty) { "(none)" } else { $current }
                         print $"(ansi yellow)Current command:(ansi reset) ($current_display)"
                         
