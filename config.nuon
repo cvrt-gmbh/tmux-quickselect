@@ -8,22 +8,10 @@
     ]
 
     # Command to run after selecting (empty = just cd)
-    # Ignored if 'plugin' is set
     command: ""
 
-    # Plugin to use instead of simple command (optional)
-    # Plugins are loaded from ~/.config/tmux-quickselect/plugins/ or /opt/homebrew/opt/tmux-quickselect/libexec/plugins/
-    # plugin: "my-plugin"
-
-    # Plugin-specific configuration (optional, varies by plugin)
-    # plugin_config: {}
-
     # Sort order: "recent" (last used first), "alphabetical", "label"
-    # Can also be a list for multi-key sort: ["label", "recent"]
     sort: "recent"
-
-    # Show hidden files/folders (dotfiles)
-    show_hidden: false
 
     # Cache directory for usage history
     cache_dir: "~/.cache/tmux-quickselect"

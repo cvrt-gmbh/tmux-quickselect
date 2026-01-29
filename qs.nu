@@ -1,12 +1,10 @@
 # qs.nu
 # tmux-quickselect: Interactive directory launcher for tmux with Nushell
-# https://github.com/cvrt-gmbh/tmux-quickselect
+# https://github.com/cvrt-jh/tmux-quickselect
 
 # ============ Configuration ============
 
 const CONFIG_FILE = "~/.config/tmux-quickselect/config.nuon"
-const PLUGIN_DIR = "/opt/homebrew/opt/tmux-quickselect/libexec/plugins"
-const USER_PLUGIN_DIR = "~/.config/tmux-quickselect/plugins"
 
 def get-config [] {
     let config_file = ($CONFIG_FILE | path expand)
@@ -93,165 +91,6 @@ def get-subdirs [path: string, show_hidden: bool] {
     }
 }
 
-# ============ Plugin System ============
-
-# Find plugin file path
-def find-plugin [name: string] {
-    # Check user plugins first
-    let user_path = ($"($USER_PLUGIN_DIR)/($name).nu" | path expand)
-    if ($user_path | path exists) {
-        return $user_path
-    }
-    
-    # Check system plugins
-    let system_path = $"($PLUGIN_DIR)/($name).nu"
-    if ($system_path | path exists) {
-        return $system_path
-    }
-    
-    null
-}
-
-# Execute plugin and get command to run
-def run-plugin [
-    plugin_name: string,
-    path: string,
-    name: string,
-    plugin_config: record,
-    tmux: bool
-] {
-    let plugin_path = (find-plugin $plugin_name)
-    
-    if ($plugin_path == null) {
-        print $"(ansi red)Plugin not found: ($plugin_name)(ansi reset)"
-        print $"(ansi dark_gray)Searched: ($USER_PLUGIN_DIR | path expand), ($PLUGIN_DIR)(ansi reset)"
-        return null
-    }
-    
-    # Write plugin config to temp file for the subprocess to read
-    let temp_config = (mktemp -t qs-plugin-config.XXXXXX)
-    let temp_result = (mktemp -t qs-plugin-result.XXXXXX)
-    $plugin_config | to nuon | save -f $temp_config
-    
-    # Run plugin interactively (no pipe capture) - it writes result to temp file
-    # This allows input list and other interactive commands to work
-    nu --login -c $"
-        source '($plugin_path)'
-        let cfg = \(open '($temp_config)' | from nuon\)
-        let result = \(run '($path)' '($name)' $cfg ($tmux)\)
-        if \($result != null\) {
-            $result | to nuon | save -f '($temp_result)'
-        }
-    "
-    
-    # Read result from temp file
-    let result = if ($temp_result | path exists) and (open $temp_result | str trim | is-not-empty) {
-        try {
-            open $temp_result | from nuon
-        } catch {
-            null
-        }
-    } else {
-        null
-    }
-    
-    # Cleanup temp files
-    rm -f $temp_config $temp_result
-    
-    $result
-}
-
-# Execute the final command (either from plugin or config.command)
-# Returns: true if executed, false if cancelled (should go back)
-def execute-selection [
-    config: record,
-    selection_path: string,
-    selection_name: string,
-    tmux: bool,
-    line: string
-]: nothing -> bool {
-    let debug_log = "/tmp/qs-debug.log"
-    $"[(date now | format date '%Y-%m-%d %H:%M:%S')] execute-selection called\n" | save -a $debug_log
-    $"  selection_path: ($selection_path)\n" | save -a $debug_log
-    $"  selection_name: ($selection_name)\n" | save -a $debug_log
-    $"  tmux: ($tmux)\n" | save -a $debug_log
-    
-    let plugin_name = ($config | get -o plugin | default null)
-    let plugin_config = ($config | get -o plugin_config | default {})
-    $"  plugin_name: ($plugin_name)\n" | save -a $debug_log
-    
-    # Determine command and window name
-    let result = if ($plugin_name != null) {
-        # Use plugin
-        $"  -> calling run-plugin\n" | save -a $debug_log
-        run-plugin $plugin_name $selection_path $selection_name $plugin_config $tmux
-    } else {
-        # Use simple command from config
-        let cmd = ($config | get -o command | default "")
-        { command: $cmd, window_name: $selection_name }
-    }
-    
-    $"  plugin result: ($result | to nuon)\n" | save -a $debug_log
-    
-    # If plugin returned null, it cancelled - signal to go back
-    if ($result == null) {
-        $"  -> plugin returned null, going back\n" | save -a $debug_log
-        return false
-    }
-    
-    let command = ($result | get -o command | default "")
-    let window_name = ($result | get -o window_name | default $selection_name)
-    
-    # Debug log to file (always, for troubleshooting)
-    let debug_log = "/tmp/qs-debug.log"
-    $"[(date now | format date '%Y-%m-%d %H:%M:%S')] qs execute\n" | save -a $debug_log
-    $"  tmux mode: ($tmux)\n" | save -a $debug_log
-    $"  window_name: ($window_name)\n" | save -a $debug_log
-    $"  selection_path: ($selection_path)\n" | save -a $debug_log
-    $"  command length: ($command | str length)\n" | save -a $debug_log
-    $"  command starts with 'bash -c': ($command | str starts-with 'bash -c')\n" | save -a $debug_log
-    $"  command: ($command)\n" | save -a $debug_log
-    
-    if $tmux {
-        # Open in new tmux window
-        if ($command | is-empty) {
-            $"  -> executing: tmux new-window -n <name> -c <path> (no command)\n" | save -a $debug_log
-            tmux new-window -n $window_name -c $selection_path
-        } else if ($command | str starts-with "bash -c") or ($command | str starts-with "caam exec") {
-            # Command is a bash script or caam exec - run directly (needs TTY)
-            $"  -> executing: tmux new-window -n <name> -c <path> <direct command>\n" | save -a $debug_log
-            let result = (do { tmux new-window -n $window_name -c $selection_path $command } | complete)
-            $"  -> exit code: ($result.exit_code)\n" | save -a $debug_log
-            if $result.exit_code != 0 {
-                $"  -> stderr: ($result.stderr)\n" | save -a $debug_log
-            }
-        } else {
-            # Wrap in nu --login for nushell commands
-            let full_cmd = $"nu --login -c '($command)'"
-            $"  -> executing: tmux new-window -n <name> -c <path> <nu wrapped>\n" | save -a $debug_log
-            let result = (do { tmux new-window -n $window_name -c $selection_path $full_cmd } | complete)
-            $"  -> exit code: ($result.exit_code)\n" | save -a $debug_log
-            if $result.exit_code != 0 {
-                $"  -> stderr: ($result.stderr)\n" | save -a $debug_log
-            }
-        }
-    } else {
-        print ""
-        print $"(ansi green)($line)(ansi reset)"
-        print $"(ansi green)  ✓(ansi reset) Selected (ansi white_bold)($selection_name)(ansi reset)"
-        print $"(ansi dark_gray)  → ($selection_path)(ansi reset)"
-        print $"(ansi green)($line)(ansi reset)"
-        cd $selection_path
-        
-        # Run the command if set
-        if ($command | is-not-empty) {
-            nu -c $command
-        }
-    }
-    
-    true
-}
-
 # ============ Main Command ============
 
 # Interactive directory selector for tmux
@@ -260,12 +99,6 @@ def execute-selection [
 #        qs --path    - start browsing from a specific path
 #        qs --debug   - show debug info and wait
 export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
-    # Always log to file for debugging
-    let debug_log = "/tmp/qs-debug.log"
-    $"[(date now | format date '%Y-%m-%d %H:%M:%S')] qs main started\n" | save -a $debug_log
-    $"  tmux flag: ($tmux)\n" | save -a $debug_log
-    $"  path flag: ($path | default 'none')\n" | save -a $debug_log
-    
     if $debug {
         print $"(ansi yellow)DEBUG: qs started(ansi reset)"
         print $"  PWD: ($env.PWD)"
@@ -420,20 +253,11 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
         $sort_keys | str join " → "
     }
     let hidden_status = if $show_hidden { "on" } else { "off" }
-    let plugin_name = ($config | get -o plugin | default null)
-    let config_command = ($config | get -o command | default "")
-    let action_display = if ($plugin_name != null) {
-        $"(ansi magenta)plugin:(ansi reset) ($plugin_name)"
-    } else if ($config_command | is-empty) {
-        "(none)"
-    } else {
-        $config_command
-    }
     let config_items = if ($browsing_path | is-empty) {
         [
             { display: $"(ansi dark_gray)──────────────────────────────────────(ansi reset)", type: "separator", action: "" }
             { display: $"(ansi yellow)⚙(ansi reset)  Sort: (ansi white_bold)($sort_display)(ansi reset)", type: "config", action: "sort" }
-            { display: $"(ansi yellow)⚙(ansi reset)  Action: (ansi white_bold)($action_display)(ansi reset)", type: "config", action: "action" }
+            { display: $"(ansi yellow)⚙(ansi reset)  Command: (ansi white_bold)(if ($config.command | is-empty) { '(none)' } else { $config.command })(ansi reset)", type: "config", action: "command" }
             { display: $"(ansi yellow)⚙(ansi reset)  Show hidden: (ansi white_bold)($hidden_status)(ansi reset)", type: "config", action: "toggle_hidden" }
             { display: $"(ansi blue)📄(ansi reset) Edit config", type: "config", action: "edit_config" }
             { display: $"(ansi red)✕(ansi reset)  Clear history", type: "config", action: "clear_history" }
@@ -462,21 +286,25 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                     let new_history = ($history | upsert $selection.path (date now | format date "%+"))
                     $new_history | save -f $cache_file
 
-                    # Log before execute
-                    let debug_log = "/tmp/qs-debug.log"
-                    $"[(date now | format date '%Y-%m-%d %H:%M:%S')] project selected\n" | save -a $debug_log
-                    $"  path: ($selection.path)\n" | save -a $debug_log
-                    $"  name: ($selection.name)\n" | save -a $debug_log
-                    $"  calling execute-selection...\n" | save -a $debug_log
-
-                    # Execute using plugin or command
-                    let executed = (execute-selection $config $selection.path $selection.name $tmux $line)
-                    if not $executed {
-                        # Plugin cancelled - go back to selection
-                        if $path == null {
-                            qs --tmux=$tmux
+                    if $tmux {
+                        # Open in new tmux window with directory name
+                        if ($config.command | is-empty) {
+                            tmux new-window -n $selection.name -c $selection.path
                         } else {
-                            qs --tmux=$tmux --path $path
+                            # Use nu --login -c for interactive commands (e.g., claude, caam)
+                            tmux new-window -n $selection.name -c $selection.path $"nu --login -c '($config.command)'"
+                        }
+                    } else {
+                        print ""
+                        print $"(ansi green)($line)(ansi reset)"
+                        print $"(ansi green)  ✓(ansi reset) Selected (ansi white_bold)($selection.name)(ansi reset)"
+                        print $"(ansi dark_gray)  → ($selection.path)(ansi reset)"
+                        print $"(ansi green)($line)(ansi reset)"
+                        cd $selection.path
+                        
+                        # Run the configured command if set
+                        if ($config.command | is-not-empty) {
+                            nu -c $config.command
                         }
                     }
                 }
@@ -501,11 +329,24 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                         let new_history = ($history | upsert $selection.path (date now | format date "%+"))
                         $new_history | save -f $cache_file
 
-                        # Execute using plugin or command
-                        let executed = (execute-selection $config $selection.path $selection.name $tmux $line)
-                        if not $executed {
-                            # Plugin cancelled - go back to selection
-                            qs --tmux=$tmux --path $selection.path
+                        if $tmux {
+                            if ($config.command | is-empty) {
+                                tmux new-window -n $selection.name -c $selection.path
+                            } else {
+                                # Use nu --login -c for interactive commands (e.g., claude, caam)
+                                tmux new-window -n $selection.name -c $selection.path $"nu --login -c '($config.command)'"
+                            }
+                        } else {
+                            print ""
+                            print $"(ansi green)($line)(ansi reset)"
+                            print $"(ansi green)  ✓(ansi reset) Selected (ansi white_bold)($selection.name)(ansi reset)"
+                            print $"(ansi dark_gray)  → ($selection.path)(ansi reset)"
+                            print $"(ansi green)($line)(ansi reset)"
+                            cd $selection.path
+                            
+                            if ($config.command | is-not-empty) {
+                                nu -c $config.command
+                            }
                         }
                     }
                 }
@@ -535,90 +376,59 @@ export def --env qs [--tmux (-t), --debug (-d), --path (-p): string] {
                             }
                         }
                     }
-                    "action" => {
-                        # Configure what happens after directory selection
-                        let debug_log = "/tmp/qs-debug.log"
-                        $"[(date now | format date '%Y-%m-%d %H:%M:%S')] action menu entered\n" | save -a $debug_log
-                        print ""
-                        print $"(ansi yellow)Configure action after selection:(ansi reset)"
-                        print $"(ansi dark_gray)Current: ($action_display)(ansi reset)"
-                        print ""
-                        $"  after prints\n" | save -a $debug_log
-
-                        # Find available plugins
-                        let user_plugins_dir = ($USER_PLUGIN_DIR | path expand)
-                        $"  user_plugins_dir: ($user_plugins_dir)\n" | save -a $debug_log
-                        let user_plugins = if ($user_plugins_dir | path exists) {
-                            ls $user_plugins_dir | where name =~ '\.nu$' | each {|f| $f.name | path basename | str replace '.nu' '' }
-                        } else { [] }
-                        
-                        let system_plugins = if ($PLUGIN_DIR | path exists) {
-                            ls $PLUGIN_DIR | where name =~ '\.nu$' | each {|f| $f.name | path basename | str replace '.nu' '' }
-                        } else { [] }
-                        
-                        let all_plugins = ($user_plugins | append $system_plugins | uniq | where { $in != "default" })
-                        $"  all_plugins: ($all_plugins)\n" | save -a $debug_log
-
-                        # Build menu
-                        $"  building menu\n" | save -a $debug_log
-                        let menu_item_1 = { display: $"(ansi green)▸(ansi reset) Simple command", value: "__COMMAND__", type: "command" }
-                        $"  item 1 built\n" | save -a $debug_log
-                        let menu_item_2 = { display: $"(ansi red)✕(ansi reset) None (just open shell)", value: "__NONE__", type: "none" }
-                        $"  item 2 built\n" | save -a $debug_log
-                        mut menu_items = [$menu_item_1, $menu_item_2]
-                        $"  base menu built\n" | save -a $debug_log
-
-                        if ($all_plugins | is-not-empty) {
-                            $menu_items = ($menu_items | append { display: $"(ansi dark_gray)── Plugins ──(ansi reset)", value: "__SEP__", type: "separator" })
-                            $menu_items = ($menu_items | append ($all_plugins | each {|p|
-                                { display: $"(ansi magenta)◆(ansi reset) ($p)", value: $p, type: "plugin" }
-                            }))
+                    "command" => {
+                        # Load command history
+                        let cmd_history_file = ($"($config.cache_dir)/command_history.nuon" | path expand)
+                        let cmd_history = if ($cmd_history_file | path exists) {
+                            open $cmd_history_file | default []
+                        } else {
+                            []
                         }
-                        $"  plugins check done\n" | save -a $debug_log
-
-                        $"  menu_items: ($menu_items | length) items\n" | save -a $debug_log
-                        $"  showing input list\n" | save -a $debug_log
-                        let selection = ($menu_items | input list --display display "Action:")
-                        $"  selection made: ($selection | to nuon)\n" | save -a $debug_log
-
-                        if ($selection | is-not-empty) and ($selection.type != "separator") {
-                            if $selection.type == "command" {
-                                # Show command input
-                                let cmd_history_file = ($"($config.cache_dir)/command_history.nuon" | path expand)
-                                let cmd_history = if ($cmd_history_file | path exists) {
-                                    open $cmd_history_file | default []
-                                } else { [] }
-                                
-                                let new_cmd = if ($cmd_history | is-empty) {
-                                    input "Command: "
-                                } else {
-                                    let history_items = ($cmd_history | each {|cmd|
-                                        { display: $"  ($cmd)", value: $cmd }
-                                    })
-                                    let cmd_menu = [{ display: $"(ansi yellow)▸(ansi reset) Type new...", value: "__NEW__" }] | append $history_items
-                                    let sel = ($cmd_menu | input list --display display "Command:")
-                                    if ($sel | is-empty) { null }
-                                    else if $sel.value == "__NEW__" { input "Command: " }
-                                    else { $sel.value }
-                                }
-                                
-                                if ($new_cmd != null) {
-                                    let new_config = ($config | reject -o plugin | reject -o plugin_config | upsert command $new_cmd)
-                                    save-config $new_config
-                                    
-                                    if ($new_cmd | is-not-empty) and ($new_cmd not-in $cmd_history) {
-                                        let updated_history = ([$new_cmd] | append $cmd_history | take 10)
-                                        $updated_history | save -f $cmd_history_file
-                                    }
-                                }
-                            } else if $selection.type == "none" {
-                                let new_config = ($config | reject -o plugin | reject -o plugin_config | upsert command "")
-                                save-config $new_config
-                            } else if $selection.type == "plugin" {
-                                let new_config = ($config | upsert plugin $selection.value | upsert command "" | upsert plugin_config {})
-                                save-config $new_config
-                                print $"(ansi green)Plugin '($selection.value)' activated(ansi reset)"
-                                print $"(ansi dark_gray)Edit config.nuon to customize plugin_config(ansi reset)"
+                        
+                        print ""
+                        let current = if ($config.command | is-empty) { "" } else { $config.command }
+                        let current_display = if ($current | is-empty) { "(none)" } else { $current }
+                        print $"(ansi yellow)Current command:(ansi reset) ($current_display)"
+                        
+                        let new_cmd = if ($cmd_history | is-empty) {
+                            # No history - just prompt for input
+                            print $"(ansi dark_gray)Enter command, empty for just cd:(ansi reset)"
+                            input "Command: "
+                        } else {
+                            # Show history selection
+                            print $"(ansi dark_gray)Select from history or type new:(ansi reset)"
+                            print ""
+                            
+                            let history_items = ($cmd_history | each {|cmd|
+                                { display: $"  ($cmd)", value: $cmd, type: "history" }
+                            })
+                            let menu_items = [
+                                { display: $"(ansi yellow)▸(ansi reset) Type new command...", value: "__NEW__", type: "new" }
+                                { display: $"(ansi red)✕(ansi reset) Clear command", value: "__CLEAR__", type: "clear" }
+                            ] | append $history_items
+                            
+                            let selection = ($menu_items | input list --display display "Select:")
+                            
+                            if ($selection | is-empty) {
+                                null  # User cancelled
+                            } else if $selection.value == "__NEW__" {
+                                input "Command: "
+                            } else if $selection.value == "__CLEAR__" {
+                                ""
+                            } else {
+                                $selection.value
+                            }
+                        }
+                        
+                        if ($new_cmd != null) {
+                            # Save to config
+                            let new_config = ($config | upsert command $new_cmd)
+                            save-config $new_config
+                            
+                            # Update command history (add new commands, keep unique, limit to 10)
+                            if ($new_cmd | is-not-empty) and ($new_cmd not-in $cmd_history) {
+                                let updated_history = ([$new_cmd] | append $cmd_history | take 10)
+                                $updated_history | save -f $cmd_history_file
                             }
                         }
                     }
